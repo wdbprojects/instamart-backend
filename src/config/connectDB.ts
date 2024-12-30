@@ -1,9 +1,10 @@
 import mongoose from "mongoose";
+import { MONGODB_URL } from "../constants/env";
 
 const connectDB = async () => {
   try {
     if (mongoose.connection.readyState >= 1) return;
-    const { connection } = await mongoose.connect(process.env.MONGODB_URL!);
+    const { connection } = await mongoose.connect(MONGODB_URL);
     if (connection) {
       console.log(`Successfully connected to DB: ${connection.name}`);
     }
