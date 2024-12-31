@@ -6,9 +6,11 @@ import SessionModel from "../models/session.model";
 import { JWT_REFRESH_SECRET, JWT_SECRET } from "../constants/env";
 import jwt from "jsonwebtoken";
 import appAssert from "../utils/app-assert";
-import { CONFLICT } from "../constants/http";
+import { CONFLICT, UNAUTHORIZED } from "../constants/http";
 
-export type CreateAccountType = {
+/* REGISTER SERVIE */
+
+export type CreateAccountParams = {
   firstName: string;
   lastName: string;
   email: string;
@@ -16,7 +18,7 @@ export type CreateAccountType = {
   userAgent?: string;
 };
 
-export const createAccount = async (data: CreateAccountType) => {
+export const createAccount = async (data: CreateAccountParams) => {
   // 1. verify that user with email exists
   const existingUser = await UserModel.exists({ email: data.email });
   appAssert(!existingUser, CONFLICT, "Email already in use (appAssert)");
@@ -50,6 +52,53 @@ export const createAccount = async (data: CreateAccountType) => {
     { userId: user._id, sessionId: session._id },
     JWT_SECRET,
     { audience: ["user"], expiresIn: "15m" }
+  );
+  // 7. return new user and access & refresh tokens
+  return {
+    user: user.omitPassword(),
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  };
+};
+
+/* LOGIN SERVIE */
+
+export type LoginAccountParams = {
+  email: string;
+  password: string;
+  userAgent?: string;
+};
+
+export const loginUser = async ({
+  email,
+  password,
+  userAgent,
+}: LoginAccountParams) => {
+  // 1. verify that user with email exists
+  const user = await UserModel.findOne({ email: email });
+  appAssert(user, UNAUTHORIZED, "Invalid email or password");
+  // 2. validate password
+  const passwordIsValid = await user.comparePassword(password);
+  appAssert(passwordIsValid, UNAUTHORIZED, "Invalid email or password");
+  // 3. create session
+  const userId = user._id;
+  const session = await SessionModel.create({
+    userId: userId,
+    userAgent: userAgent,
+  });
+  const sessionInfo = { sessionId: session._id };
+  // 4. sign access & refresh token
+  const refreshToken = jwt.sign(sessionInfo, JWT_REFRESH_SECRET, {
+    audience: ["user"],
+    expiresIn: "30d",
+  });
+  const accessToken = jwt.sign(
+    { ...sessionInfo, userId: user._id },
+    JWT_SECRET,
+    {
+      audience: ["user"],
+      expiresIn: "15m",
+    }
   );
   // 7. return new user and access & refresh tokens
   return {
