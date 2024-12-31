@@ -7,6 +7,7 @@ import { JWT_REFRESH_SECRET, JWT_SECRET } from "../constants/env";
 import jwt from "jsonwebtoken";
 import appAssert from "../utils/app-assert";
 import { CONFLICT, UNAUTHORIZED } from "../constants/http";
+import { refreshTokenSignOptions, signToken } from "../utils/jwt";
 
 /* REGISTER SERVIE */
 
@@ -43,16 +44,10 @@ export const createAccount = async (data: CreateAccountParams) => {
     userAgent: data.userAgent,
   });
   // 6. sign access & refresh token
-  const refreshToken = jwt.sign(
-    { sessionId: session._id },
-    JWT_REFRESH_SECRET,
-    { audience: ["user"], expiresIn: "30d" }
-  );
-  const accessToken = jwt.sign(
-    { userId: user._id, sessionId: session._id },
-    JWT_SECRET,
-    { audience: ["user"], expiresIn: "15m" }
-  );
+  const sessionInfo = { sessionId: session._id };
+  const refreshToken = signToken(sessionInfo, refreshTokenSignOptions);
+  const accessToken = signToken({ ...sessionInfo, userId: user._id });
+
   // 7. return new user and access & refresh tokens
   return {
     user: user.omitPassword(),
@@ -86,20 +81,11 @@ export const loginUser = async ({
     userId: userId,
     userAgent: userAgent,
   });
-  const sessionInfo = { sessionId: session._id };
   // 4. sign access & refresh token
-  const refreshToken = jwt.sign(sessionInfo, JWT_REFRESH_SECRET, {
-    audience: ["user"],
-    expiresIn: "30d",
-  });
-  const accessToken = jwt.sign(
-    { ...sessionInfo, userId: user._id },
-    JWT_SECRET,
-    {
-      audience: ["user"],
-      expiresIn: "15m",
-    }
-  );
+  const sessionInfo = { sessionId: session._id };
+  const refreshToken = signToken(sessionInfo, refreshTokenSignOptions);
+  const accessToken = signToken({ ...sessionInfo, userId: user._id });
+
   // 7. return new user and access & refresh tokens
   return {
     user: user.omitPassword(),
