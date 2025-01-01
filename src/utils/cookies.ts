@@ -9,7 +9,7 @@ type CookieParams = {
 };
 
 const secure = NODE_ENV !== "development";
-const REFRESH_PATH = "/auth/refresh";
+export const REFRESH_PATH = "/auth/refresh";
 
 const defaults: CookieOptions = {
   sameSite: "strict",
@@ -17,11 +17,11 @@ const defaults: CookieOptions = {
   secure: secure,
 };
 
-const getAccessTokenCookieOptions = (): CookieOptions => {
+export const getAccessTokenCookieOptions = (): CookieOptions => {
   return { ...defaults, expires: fifteenMinutesFromNow() };
 };
 
-const getRefreshTokenCookieOptions = (): CookieOptions => {
+export const getRefreshTokenCookieOptions = (): CookieOptions => {
   return { ...defaults, expires: thirtyDaysFromNow(), path: REFRESH_PATH };
 };
 

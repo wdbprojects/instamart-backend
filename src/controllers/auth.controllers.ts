@@ -1,12 +1,22 @@
 import { Request, Response, NextFunction } from "express";
 import catchAsyncErrors from "../utils/catch-async-errors";
 import { z } from "zod";
-import { createAccount, loginUser } from "../services/auth.service";
-import { CREATED, OK } from "../constants/http";
-import { clearAuthCookies, setAuthCookies } from "../utils/cookies";
+import {
+  createAccount,
+  loginUser,
+  refreshUserAccessToken,
+} from "../services/auth.service";
+import { CREATED, OK, UNAUTHORIZED } from "../constants/http";
+import {
+  clearAuthCookies,
+  getAccessTokenCookieOptions,
+  getRefreshTokenCookieOptions,
+  setAuthCookies,
+} from "../utils/cookies";
 import { loginSchema, registerSchema } from "./auth.schema";
 import { verifyToken } from "../utils/jwt";
 import SessionModel from "../models/session.model";
+import appAssert from "../utils/app-assert";
 
 export const registerHandler = catchAsyncErrors(async (req, res, next) => {
   // 1. validate request
@@ -49,4 +59,24 @@ export const logoutHandler = catchAsyncErrors(async (req, res, next) => {
   return clearAuthCookies(res)
     .status(OK)
     .json({ message: "Logout successful" });
+});
+
+export const refreshHandler = catchAsyncErrors(async (req, res, next) => {
+  const refreshToken = req.cookies.refreshToken as string | undefined;
+  appAssert(refreshToken, UNAUTHORIZED, "Missing refresh token");
+  // call refreshUserAccessToken service
+  const { accessToken, newRefreshToken } =
+    await refreshUserAccessToken(refreshToken);
+  // return response
+  if (newRefreshToken) {
+    res.cookie("refreshToken", newRefreshToken, getRefreshTokenCookieOptions());
+  }
+  res
+    .status(OK)
+    .cookie("accessToken", accessToken, getAccessTokenCookieOptions())
+    .json({
+      message: "Access token refreshed",
+      accessToken: accessToken,
+      refreshToken: newRefreshToken,
+    });
 });

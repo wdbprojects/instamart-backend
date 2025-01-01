@@ -1,13 +1,23 @@
 import UserModel from "../models/user.model";
 import VerificationCodeModel from "../models/verification.code.model";
 import VerificationCodeTypes from "../constants/verification-code-types";
-import { oneYearFromNow } from "../utils/dates";
+import {
+  NOW,
+  ON_DAY_MS,
+  oneYearFromNow,
+  thirtyDaysFromNow,
+} from "../utils/dates";
 import SessionModel from "../models/session.model";
 import { JWT_REFRESH_SECRET, JWT_SECRET } from "../constants/env";
 import jwt from "jsonwebtoken";
 import appAssert from "../utils/app-assert";
 import { CONFLICT, UNAUTHORIZED } from "../constants/http";
-import { refreshTokenSignOptions, signToken } from "../utils/jwt";
+import {
+  RefreshTokenPayload,
+  refreshTokenSignOptions,
+  signToken,
+  verifyToken,
+} from "../utils/jwt";
 
 /* REGISTER SERVIE */
 
@@ -92,4 +102,39 @@ export const loginUser = async ({
     accessToken: accessToken,
     refreshToken: refreshToken,
   };
+};
+
+export const refreshUserAccessToken = async (refreshToken: string) => {
+  // 1. validate refresh token
+  const { payload } = verifyToken<RefreshTokenPayload>(refreshToken, {
+    secret: refreshTokenSignOptions.secret,
+  });
+  appAssert(payload, UNAUTHORIZED, "Invalid refresh token");
+  // 2. get the session
+  const session = await SessionModel.findById(payload.sessionId);
+  appAssert(
+    session && session.expiresAt.getTime() > NOW,
+    UNAUTHORIZED,
+    "Session expired"
+  );
+  // 3. id session is about to expire, increase its expiration date (better user experience)
+  // refresh session if it expires within the next 24 hours
+  const sessionNeedsRefresh = session.expiresAt.getTime() - NOW <= ON_DAY_MS;
+  if (sessionNeedsRefresh) {
+    session.expiresAt = thirtyDaysFromNow();
+    await session.save();
+  }
+  // 4. sign new refresh token
+  const newRefreshToken = sessionNeedsRefresh
+    ? signToken({ sessionId: session._id }, refreshTokenSignOptions)
+    : undefined;
+
+  // 5. sign new access token
+  const accessToken = signToken({
+    userId: session.userId,
+    sessionId: session._id,
+  });
+
+  // 6. return tokens
+  return { accessToken: accessToken, newRefreshToken: newRefreshToken };
 };
