@@ -7,6 +7,8 @@ import errorHandler from "./middleware/error-handler";
 import catchAsyncErrors from "./utils/catch-async-errors";
 import { OK } from "./constants/http";
 import authRoutes from "./routes/auth.route";
+import authenticate from "./middleware/authenticate";
+import userRoutes from "./routes/user.route";
 
 const app = express();
 
@@ -18,10 +20,13 @@ app.use(cookieParse());
 
 // 2. ROUTING
 app.get("/", (req, res, next) => {
-  res.status(OK).json({ message: "healthy check" });
+  res.status(OK).json({ message: "healthy check!" });
 });
 
+// AUTH ROUTES
 app.use("/auth", authRoutes);
+// PROTECTED ROUTES
+app.use("/user", authenticate, userRoutes);
 
 // 3. ERROR HANDLER
 app.use(errorHandler);
