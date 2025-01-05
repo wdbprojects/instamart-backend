@@ -3,8 +3,11 @@ import catchAsyncErrors from "../utils/catch-async-errors";
 import { z } from "zod";
 import {
   createAccount,
+  emailVerifyHandlerService,
   loginUser,
   refreshUserAccessToken,
+  resetPassword,
+  sendPasswordForgotEmail,
 } from "../services/auth.service";
 import { CREATED, OK, UNAUTHORIZED } from "../constants/http";
 import {
@@ -13,7 +16,13 @@ import {
   getRefreshTokenCookieOptions,
   setAuthCookies,
 } from "../utils/cookies";
-import { loginSchema, registerSchema } from "./auth.schema";
+import {
+  emailSchema,
+  loginSchema,
+  registerSchema,
+  resetPasswordSchema,
+  verificationCodeSchema,
+} from "./auth.schema";
 import { verifyToken } from "../utils/jwt";
 import SessionModel from "../models/session.model";
 import appAssert from "../utils/app-assert";
@@ -80,3 +89,34 @@ export const refreshHandler = catchAsyncErrors(async (req, res, next) => {
       refreshToken: newRefreshToken,
     });
 });
+
+export const emailVerifyHandler = catchAsyncErrors(async (req, res, next) => {
+  const verificationCode = verificationCodeSchema.parse(req.params.code);
+  // call emailVerifyHandlerService service
+  const updatedUser = await emailVerifyHandlerService(verificationCode);
+  return res.status(OK).json({
+    message: "Email verification successfull",
+    updatedUser: updatedUser,
+  });
+});
+
+export const sendPasswordForgotHandler = catchAsyncErrors(
+  async (req, res, next) => {
+    const email = emailSchema.parse(req.body.email);
+    // call sendPasswordForgotEmail service
+    await sendPasswordForgotEmail(email);
+    return res.status(OK).json({ message: "Password reset email sent" });
+  }
+);
+
+export const sendPasswordResetHandler = catchAsyncErrors(
+  async (req, res, next) => {
+    const request = resetPasswordSchema.parse(req.body);
+    // call resetPassword service
+    await resetPassword(request);
+    // return response
+    return clearAuthCookies(res)
+      .status(OK)
+      .json({ message: "Password reset successful" });
+  }
+);
