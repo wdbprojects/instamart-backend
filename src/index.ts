@@ -6,9 +6,10 @@ import { APP_ORIGIN, PORT } from "./constants/env";
 import errorHandler from "./middleware/error-handler";
 import catchAsyncErrors from "./utils/catch-async-errors";
 import { OK } from "./constants/http";
-import authRoutes from "./routes/auth.route";
 import authenticate from "./middleware/authenticate";
+import authRoutes from "./routes/auth.route";
 import userRoutes from "./routes/user.route";
+import sessionRoutes from "./routes/session.route";
 
 const app = express();
 
@@ -27,6 +28,8 @@ app.get("/", (req, res, next) => {
 app.use("/auth", authRoutes);
 // PROTECTED ROUTES
 app.use("/user", authenticate, userRoutes);
+// SESSION ROUTES
+app.use("/sessions", authenticate, sessionRoutes);
 
 // 3. ERROR HANDLER
 app.use(errorHandler);
