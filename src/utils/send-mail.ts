@@ -29,6 +29,7 @@ export const sendMailORIG = async ({
     html: html,
   });
 };
+
 export const sendMail = async ({ to, subject, text, html }: ResendParams) => {
   const { data, error } = await resend.emails.send({
     from: getFromEmail(),
